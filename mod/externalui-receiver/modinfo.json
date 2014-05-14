@@ -1,0 +1,23 @@
+{
+    "context": "client",
+    "identifier": "info.nanodesu.externalui.receiver",
+    "display_name": "External UI receiver",
+    "description": "Used to make the external UI work",
+    "author": "Cola_Colin",
+    "version": "1",
+    "build": "65588",
+    "date": "2014/5/14",
+    "signature": "not yet implemented",
+    "forum": "https://forums.uberent.com/threads/wip-external-ui.59469/",
+    "category": [
+        "ui"
+    ],
+    "id": "externalui-receiver",
+    "priority": 100,
+    "scenes": {
+        "start": [
+            "coui://external-ui/receiver.js"
+        ]
+    },
+    "enabled": true
+}

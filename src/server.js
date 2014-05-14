@@ -37,7 +37,10 @@ ubernet.login(conf.user, conf.password, function(d) {
 		for (var i = 0; i < bootJson[type].length; i++) {
 			var lib = "";
 			if (type === "js" && bootJson[type][i] === "/ui/main/shared/js/coherent.js") {
-				lib = fs.readFileSync(__dirname + "/coherentfake.js", {encoding: "ascii"});
+				var f = fs.readFileSync(__dirname + "/coherentfake.js", {encoding: 'ascii'});
+				// TODO build something to handle this via the session ticket instead?!
+				var credentials = "var uberName = '"+conf.user+"'; var uberPassword = '"+conf.password+"';";
+				lib = credentials + f;
 			} else if (type === "js" && bootJson[type][i] === "/ui/main/shared/js/panel.js") {
 				lib = "\n\n";
 			} else {
@@ -63,7 +66,6 @@ ubernet.login(conf.user, conf.password, function(d) {
 
 	app.configure(function() {
 		app.use(resolvedCoui);
-		app.use("/ui/main/shared/js/coherent.js", express.static(__dirname + "coherentfake.js"));
 		app.use("/", express.static(couiHost));
 		app.use("/ui/main/shared/js/boot.js", function(req, res) {
 			res.setHeader("Content-Type", "application/x-javascript");
