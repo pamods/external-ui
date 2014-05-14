@@ -12,8 +12,11 @@ to use create a conf.json file in src with this kind of content:
 }
 
 Install [nodejs](http://nodejs.org/download/)
+
 Run: npm install
+
 Start: node server.js
+
 Open this page in your browser:
 http://127.0.0.1:8080/ui/main/game/server_browser/server_browser.html
 
