@@ -1,3 +1,6 @@
+sessionStorage['build_version'] = JSON.stringify(gameClientVersion+""); // inserted by nodejs
+sessionStorage['signed_in_to_ubernet'] = JSON.stringify(true);
+
 function loginData() {
 	// values are passed in by nodejs
 	return {user: uberName, password: uberPassword};
@@ -11,8 +14,14 @@ function b64_to_utf8( str ) {
     return unescape(decodeURIComponent(window.atob( str )));
 }
 
+// prevent PA from starting up multiple times by accidental clicks. 
+var lastStartPARun = new Date().getTime();
 function startpa(data) {
-	document.location = "startpa://extreceive="+utf8_to_b64(JSON.stringify(data));
+	if (new Date().getTime() - lastStartPARun > 3000) {
+		lastStartPARun = new Date().getTime();
+		data.login = loginData();
+		document.location = "startpa://extreceive="+utf8_to_b64(JSON.stringify(data));
+	}
 }
 
 engine = (function() {
@@ -43,6 +52,8 @@ engine = (function() {
 			var func = arguments[0];
 			var t = nextTag();
 			
+			var known = false;
+			
 			switch (func) {
 			case "game.unloadPage":
 				return undefined;
@@ -59,14 +70,17 @@ engine = (function() {
 					url: "/ubernet/currentgames",
 					data: {tx: t}
 				});
+				known = true;
 				break;
 			case "ubernet.joinGame":
-				startpa({joinGame: arguments[1], login: loginData()});
+				startpa({joinGame: arguments[1], spectateGame: JSON.parse(sessionStorage['try_to_spectate'])});
 				return;
 			}
 			
-			console.log("engine.call:");
-			console.log(arguments);
+			if (!known) {
+				console.log("unknown engine.call:");
+				console.log(arguments);
+			}
 			return {
 				then: function(h) {
 					h(t);
@@ -84,6 +98,3 @@ engine = (function() {
 		}
 	};
 }());
-
-sessionStorage['build_version'] = JSON.stringify("65588"); // TODO make this dynamic
-sessionStorage['signed_in_to_ubernet'] = JSON.stringify(true);

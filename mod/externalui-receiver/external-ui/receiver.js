@@ -34,6 +34,10 @@
 	
 	model.inMainMenu.subscribe(function(v) {
 		if (v && receivedData && model.signedInToUbernet()) {
+			if (receivedData.spectateGame) {
+				sessionStorage['try_to_spectate'] = true;
+			}
+
 			if (receivedData.joinGame) {
 		        engine.asyncCall("ubernet.joinGame", receivedData.joinGame).done(function (data) {
 		        	
@@ -63,6 +67,12 @@
 	                console.log('ubernet.joinGame: failed');
 	                transit('FAILED TO FIND GAME');
 	            });
+			}
+			
+			if (receivedData.createGame) {
+	            engine.call('disable_lan_lookout');
+	            window.location.href = 'coui://ui/main/game/connect_to_game/connect_to_game.html?mode=start';
+	            return; /* window.location.href will not stop execution. */
 			}
 		}
 	});

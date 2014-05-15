@@ -1,4 +1,5 @@
-// empty dummy, will be replaced by loading the real one hopefully soon
+// so far external UI does not support loading of normal mods. However it uses the modding system to
+// load a mod that modifes the scenes in the browser
 var global_mod_list = [
 ];
 
@@ -30,6 +31,7 @@ var scene_mod_list = {
     "replay_browser": [
     ],
     "server_browser": [
+      "/mods/server_browser.js"
     ],
     "settings": [
     ],

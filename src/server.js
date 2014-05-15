@@ -9,7 +9,11 @@ var port = process.env.port || 8080;
 var app = express();
 
 var conf = JSON.parse(fs.readFileSync(__dirname + "/conf.json", {encoding: "ascii"}));
+
+conf.pollingRate = conf.pollingRate || 3000;
+
 var couiHost = conf.couiHost;
+var uiModList = fs.readFileSync(__dirname + "/mods/ui_mod_list.js", {encoding: 'ascii'});
 
 ubernet.login(conf.user, conf.password, function(d) {
 	console.log("logged in as "+JSON.stringify(d));
@@ -40,7 +44,9 @@ ubernet.login(conf.user, conf.password, function(d) {
 				var f = fs.readFileSync(__dirname + "/coherentfake.js", {encoding: 'ascii'});
 				// TODO build something to handle this via the session ticket instead?!
 				var credentials = "var uberName = '"+conf.user+"'; var uberPassword = '"+conf.password+"';";
-				lib = credentials + f;
+				var version = "var externalUiVersion = '"+require('../package.json').version+"';";
+				var paVersion = "var gameClientVersion = '"+ubernet.getCurrentClientVersion()+"';";
+				lib = paVersion + credentials + version + f;
 			} else if (type === "js" && bootJson[type][i] === "/ui/main/shared/js/panel.js") {
 				lib = "\n\n";
 			} else {
@@ -63,10 +69,11 @@ ubernet.login(conf.user, conf.password, function(d) {
 	    send(resolvedHost, {'Content-Type': contentType(path)});
 	  }
 	});
-
+	
 	app.configure(function() {
 		app.use(resolvedCoui);
 		app.use("/", express.static(couiHost));
+		app.use("/", express.static(__dirname + "/"));
 		app.use("/ui/main/shared/js/boot.js", function(req, res) {
 			res.setHeader("Content-Type", "application/x-javascript");
 			res.end(bootJs);
@@ -77,7 +84,7 @@ ubernet.login(conf.user, conf.password, function(d) {
 		});
 		app.use("/ui/mods/ui_mod_list.js", function(req, res) {
 			res.setHeader("Content-Type", "application/x-javascript");
-			res.end(fs.readFileSync(__dirname + "/ui_mod_list.js"), {encoding: 'ascii'}); // TODO support mods
+			res.end(uiModList); // TODO support mods
 		});
 		
 		var asyncs = [];
@@ -94,10 +101,19 @@ ubernet.login(conf.user, conf.password, function(d) {
 		});
 		
 		app.use(express.bodyParser());
+		
+		var gameListCache = undefined;
+		var gameListTime = new Date().getTime();
 		app.post("/ubernet/currentgames", function(req, res) {
-			ubernet.getCurrentGames(function(games) {
-				asyncs.push([req.body.tx, true, JSON.stringify(games)]);
-			});
+			if (gameListCache === undefined || (new Date().getTime() - gameListTime) > conf.pollingRate) {
+				gameListTime = new Date().getTime();
+				ubernet.getCurrentGames(function(games) {
+					gameListCache = JSON.stringify(games);
+					asyncs.push([req.body.tx, true, gameListCache]);
+				});
+			} else {
+				asyncs.push([req.body.tx, true, gameListCache]);
+			}
 			res.end("");
 		});
 	});
