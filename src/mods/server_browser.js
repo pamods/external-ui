@@ -9,4 +9,8 @@
 	model.createGame = function() {
 		startpa({createGame: true});
 	};
+	
+	// fix for firefox. Still looks super ugly on it though.
+	// IE shows a white screen even with this. Won't support it.
+	$(function() { $('html').css('display','block'); });
 }());

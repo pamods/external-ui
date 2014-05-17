@@ -5,6 +5,27 @@ exports.ubernet = (function() {
 	var uberId = undefined;
 	var displayName = undefined;
 	var clientVersion = undefined;
+	var regions = undefined;
+	
+	var getServerRegions = function(cb) {
+		request.get({url: "https://uberent.com/GameAcquisition/GetGameServerRegions?TitleId=4&BuildVersion="+clientVersion,
+			headers: {"X-Authorization": session}, json: true},
+				function(error, response, body) {
+			if (response.statusCode === 200) {
+				var data = body;
+                var result = [];
+                if (data.Regions) {
+                    for (var i = 0; i < data.Regions.length; i++) {
+                    	result.push(data.Regions[i]);
+                    }
+                }
+                cb(result);
+			} else {
+				console.log("failed to get game server regions");
+				console.log(error);
+			}
+		});
+	};
 	
 	return {
 		// call this first!
@@ -20,9 +41,13 @@ exports.ubernet = (function() {
 						session = body.SessionTicket;
 						uberId = body.UberId;
 						displayName = body.DisplayName;
-						if (cb) {
-							cb({uberId: uberId, displayName: displayName});
-						}
+						
+						getServerRegions(function(r) {
+							regions = r;
+							if (cb) {
+								cb({uberId: uberId, displayName: displayName});
+							}
+						});
 					} else {
 						console.log("login as "+user+" failed!");
 						console.log(error);
@@ -45,6 +70,9 @@ exports.ubernet = (function() {
 		// below are functions that return plain values, no callback required
 		getCurrentClientVersion: function() {
 			return clientVersion;
+		},
+		getRegions: function() {
+			return regions;
 		},
 		getCurrentUserId: function() {
 			return uberId;

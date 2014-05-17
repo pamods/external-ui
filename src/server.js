@@ -46,9 +46,10 @@ ubernet.login(conf.user, conf.password, function(d) {
 				var credentials = "var uberName = '"+conf.user+"'; var uberPassword = '"+conf.password+"';";
 				var version = "var externalUiVersion = '"+require('../package.json').version+"';";
 				var paVersion = "var gameClientVersion = '"+ubernet.getCurrentClientVersion()+"';";
-				lib = paVersion + credentials + version + f;
+				var regions = "sessionStorage['uber_net_regions'] = '"+JSON.stringify(ubernet.getRegions())+"';";
+				lib = paVersion +regions + credentials + version + f;
 			} else if (type === "js" && bootJson[type][i] === "/ui/main/shared/js/panel.js") {
-				lib = "\n\n";
+				lib = "\n/*panel.js will not be loaded for external ui*/\n";
 			} else {
 				var file = couiHost + bootJson[type][i];
 				lib = fs.readFileSync(file, {encoding: "ascii"});

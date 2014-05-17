@@ -1,4 +1,4 @@
-sessionStorage['build_version'] = JSON.stringify(gameClientVersion+""); // inserted by nodejs
+sessionStorage['build_version'] = JSON.stringify(gameClientVersion); // inserted by nodejs
 sessionStorage['signed_in_to_ubernet'] = JSON.stringify(true);
 
 function loginData() {
