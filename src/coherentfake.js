@@ -31,21 +31,26 @@ engine = (function() {
 		return tags;
 	};
 	
-	var asyncHandler = undefined;
-	
+	var asyncHandlers = [];
 	var asyncPoller = function() {
-		if (asyncHandler) {
+		if (asyncHandlers.length > 0) {
 			$.getJSON("/ubernet/async", function(data) {
 				if (data.tags) {
 					for (var i = 0; i < data.tags.length; i++) {
-						asyncHandler.apply(asyncHandler, data.tags[i]);
+						for (var j = 0; j < asyncHandlers.length; j++) {
+							var asyncHandler = asyncHandlers[i];
+							console.log("apply");
+							console.log(data.tags[i]);
+							asyncHandler.apply(asyncHandler, data.tags[i]);
+						}
 					}
 				}
 			});
 		}
 	};
-	
 	setInterval(asyncPoller, 250);
+
+	var messageHandlers = [];
 	
 	return {
 		call: function() {
@@ -75,9 +80,18 @@ engine = (function() {
 			case "ubernet.joinGame":
 				startpa({joinGame: arguments[1], spectateGame: JSON.parse(sessionStorage['try_to_spectate'])});
 				return;
+			case "ubernet.getFriends":
+				$.ajax({
+					dataType: "json",
+					type: "POST",
+					url: "/ubernet/friends",
+					data: {tx: t}
+				});
+				known = true;
+				break;
 			}
 			
-			if (!known) {
+			if (!known && arguments && arguments[0] && arguments[0].indexOf("audio.") === -1) {
 				console.log("unknown engine.call:");
 				console.log(arguments);
 			}
@@ -90,10 +104,17 @@ engine = (function() {
 		on: function() {
 			var func = arguments[0];
 			if (func === "async_result") {
-				asyncHandler = arguments[1];
+				asyncHandlers.push(arguments[1]);
+			} else if (func === "process_message") {
+				messageHandlers.push(arguments[1]);
 			} else {
 				console.log("on called");
 				console.log(arguments);
+			}
+		},
+		fakeMessage: function(message) {
+			for (var i = 0; i < messageHandlers.length; i++) {
+				messageHandlers[i](JSON.stringify(message));
 			}
 		}
 	};

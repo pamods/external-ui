@@ -28,5 +28,9 @@ String.prototype.replaceAll = function( token, newToken, ignoreCase ) {
         }
 
     }
-return str;
+    return str;
+};
+
+String.prototype.endsWith = function(suffix) {
+    return this.indexOf(suffix, this.length - suffix.length) !== -1;
 };

@@ -1,7 +1,5 @@
-// so far external UI does not support loading of normal mods. However it uses the modding system to
-// load a mod that modifes the scenes in the browser
-var global_mod_list = [
-];
+// paths need to be relative to the src/mods!!!
+var global_mod_list = [];
 
 var scene_mod_list = {
     "armory": [
@@ -31,7 +29,7 @@ var scene_mod_list = {
     "replay_browser": [
     ],
     "server_browser": [
-      "/mods/server_browser.js"
+      "server_browser.js"
     ],
     "settings": [
     ],
@@ -44,5 +42,8 @@ var scene_mod_list = {
     "system_editor": [
     ],
     "transit": [
+    ],
+    "uberbar" : [
+      "uberbar.js"
     ]
 };

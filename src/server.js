@@ -13,9 +13,12 @@ var conf = JSON.parse(fs.readFileSync(__dirname + "/conf.json", {encoding: "asci
 conf.pollingRate = conf.pollingRate || 3000;
 
 var couiHost = conf.couiHost;
-var uiModList = fs.readFileSync(__dirname + "/mods/ui_mod_list.js", {encoding: 'ascii'});
+var uiModListTxt = fs.readFileSync(__dirname + "/mods/ui_mod_list.js", {encoding: 'ascii'});
+
+eval(uiModListTxt);
 
 ubernet.login(conf.user, conf.password, function(d) {
+	var user = d;
 	console.log("logged in as "+JSON.stringify(d));
 	console.log("start serving page...");
 	
@@ -47,7 +50,17 @@ ubernet.login(conf.user, conf.password, function(d) {
 				var version = "var externalUiVersion = '"+require('../package.json').version+"';";
 				var paVersion = "var gameClientVersion = '"+ubernet.getCurrentClientVersion()+"';";
 				var regions = "sessionStorage['uber_net_regions'] = '"+JSON.stringify(ubernet.getRegions())+"';";
-				lib = paVersion +regions + credentials + version + f;
+				var jabberAuth = "var jabberAuth = "+JSON.stringify({
+					uber_id: user.uberId,
+					jabber_token: ubernet.getSession(),
+					use_ubernetdev: false
+				})+";";
+				var uberIdents = "var uberIdents = "+JSON.stringify({
+					uber_id: user.uberId,
+					uber_name: conf.user,
+					display_name: user.displayName
+				})+";";
+				lib = uberIdents + jabberAuth + paVersion +regions + credentials + version + f;
 			} else if (type === "js" && bootJson[type][i] === "/ui/main/shared/js/panel.js") {
 				lib = "\n/*panel.js will not be loaded for external ui*/\n";
 			} else {
@@ -62,19 +75,78 @@ ubernet.login(conf.user, conf.password, function(d) {
 	var bootJs = loadBootFile("js");
 	var bootCss = loadBootFile("css");
 
-	var resolvedCoui = st({
-	  root: couiHost,
-	  match: /.+\.js|.+\.html|.+\.css/,
-	  transform: function (path, text, send) {
-		var resolvedHost = text.replaceAll('coui://', '/');
-	    send(resolvedHost, {'Content-Type': contentType(path)});
-	  }
-	});
+	var resolvedCoui = function(r, mod) {
+		return st({
+			  root: r,
+			  match: /.+\.js|.+\.html|.+\.css/,
+			  transform: function (path, text, send) {
+				var resolvedHost = text.replaceAll('coui://', '/');
+				
+				if (mod) {
+					resolvedHost = mod(resolvedHost, path);
+				}
+				
+			    send(resolvedHost, {'Content-Type': contentType(path)});
+			  }
+		});
+	};
+	
+	// returns the text of all mods for a scene, given by the location of the js file of the scene
+	var modsAsTextFor = function(loc) {
+		var sceneName = loc.match(/\/([^\/]*).js$/)[1];
+		var mods = scene_mod_list[sceneName];
+		var result = "";
+		for (var i = 0; i < mods.length; i++) {
+			result = result + fs.readFileSync(__dirname + "/mods/" + mods[i], {encoding: 'ascii'});
+		}
+		return result;
+	};
 	
 	app.configure(function() {
-		app.use(resolvedCoui);
+		app.use(resolvedCoui(couiHost));
 		app.use("/", express.static(couiHost));
 		app.use("/", express.static(__dirname + "/"));
+
+		var loadSceneJs = function(name, loc, containerId) {
+			app.use(name, function(req, res) {
+				res.setHeader("Content-Type", "application/x-javascript");
+				var f = fs.readFileSync(loc, {encoding: 'ascii'}).replaceAll("o;?", ""); // some weird byte order mark maybe?
+				// bind only to specific dom part
+				f = f.replaceAll("ko.applyBindings(model);", "ko.applyBindings(model, $('"+containerId+"')[0]);");
+				// get rid of coui
+				f = f.replaceAll('coui://', '/');
+				// directly inject mods, so they are run in the correct context (we remove the global model after all)
+				f = f.replaceAll("if(scene", "if (scene").replaceAll("if (scene_mod_list", modsAsTextFor(loc)+" if(scene_mod_list");
+				// enclose the whole script in a function scope
+				f = "(function() {" + f + "}());";
+				res.end(f);
+			});
+		};
+		
+		loadSceneJs("/server_browser.js", couiHost+"ui/main/game/server_browser/server_browser.js", "#servers-container");
+		loadSceneJs("/uberbar.js", couiHost+"ui/main/uberbar/uberbar.js", "#social-container");
+		
+		// due to the fact that we load the server browser and the uber bar on / level, we need
+		// to make more files available on / to please relative references in those scenes
+		// lets hope no conflicts arise...
+		// fix errors in the PA js: it uses a reference to the global modal instead of $root for bindings
+		var modelToRootFixer = function(text, path) {
+			if (path.endsWith(".html")) {
+				return text.replaceAll("model.", "$root.");
+			} else {
+				return text;
+			}
+		};
+		
+		app.use("/", resolvedCoui(couiHost+"ui/main/game/server_browser", modelToRootFixer));
+		app.use("/", resolvedCoui(couiHost+"ui/main/uberbar", modelToRootFixer));
+		app.use("/", resolvedCoui(couiHost+"ui/main"))
+
+		// the above only server html, css and js, so below we server i.e. images
+		app.use("/", express.static(couiHost+"ui/main/game/server_browser/"));
+		app.use("/", express.static(couiHost+"ui/main/uberbar/"));
+		app.use("/", express.static(couiHost+"ui/main"));
+		
 		app.use("/ui/main/shared/js/boot.js", function(req, res) {
 			res.setHeader("Content-Type", "application/x-javascript");
 			res.end(bootJs);
@@ -83,9 +155,10 @@ ubernet.login(conf.user, conf.password, function(d) {
 			res.setHeader("Content-Type", "text/css");
 			res.end(bootCss);
 		});
+		
 		app.use("/ui/mods/ui_mod_list.js", function(req, res) {
 			res.setHeader("Content-Type", "application/x-javascript");
-			res.end(uiModList); // TODO support mods
+			res.end("var global_mod_list = [];var scene_mod_list = {};");
 		});
 		
 		var asyncs = [];
@@ -97,6 +170,8 @@ ubernet.login(conf.user, conf.password, function(d) {
 			for (var i = 0; i < asyncs.length; i++) {
 				data.tags.push(asyncs[i]);
 			}
+			// TODO this currently means that only a single page can be opened. Multiple tabs 
+			// will steal each other's data
 			asyncs.length = 0;
 			res.end(JSON.stringify(data));
 		});
@@ -110,12 +185,19 @@ ubernet.login(conf.user, conf.password, function(d) {
 				gameListTime = new Date().getTime();
 				ubernet.getCurrentGames(function(games) {
 					gameListCache = JSON.stringify(games);
-					asyncs.push([req.body.tx, true, gameListCache]);
+//					asyncs.push([req.body.tx, true, gameListCache]);
 				});
 			} else {
-				asyncs.push([req.body.tx, true, gameListCache]);
+//				asyncs.push([req.body.tx, true, gameListCache]);
 			}
 			res.end("");
+		});
+		
+		app.post("/ubernet/friends", function(req, res) {
+			ubernet.getUbernetFriends(function(friends) {
+				console.log(friends);
+				asyncs.push([req.body.tx, true, JSON.stringify(friends)]);
+			});
 		});
 	});
 	var server = app.listen(port);

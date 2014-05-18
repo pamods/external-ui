@@ -1,0 +1,7 @@
+.enableMouse {
+	pointer-events: auto;
+}
+
+.disableMouse {
+	pointer-events: none;
+}

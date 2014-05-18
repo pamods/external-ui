@@ -67,6 +67,17 @@ exports.ubernet = (function() {
 			        	 }
 		    });
 		},
+		getUbernetFriends: function(cb) {
+			request.get({url: "https://uberent.com/GameClient/GetUberFriendsList?IncludeSteamFriends=false",
+				json: true, headers: {"X-Authorization": session}}, function(error, response, body) {
+					if (response.statusCode === 200) {
+						cb(body);
+					} else {
+						console.log("failed to get friendlist");
+						console.log(error);
+					}
+				});
+		},
 		// below are functions that return plain values, no callback required
 		getCurrentClientVersion: function() {
 			return clientVersion;
@@ -79,6 +90,9 @@ exports.ubernet = (function() {
 		},
 		getCurrentUserDisplayName: function() {
 			return displayName;
+		},
+		getSession: function() {
+			return session;
 		}
 	};
 }());
